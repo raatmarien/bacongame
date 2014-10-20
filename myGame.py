@@ -18,6 +18,8 @@ class Enemy(pygame.sprite.Sprite):
     speed_x = 0
     speed_y = 0
 
+    lifes = 3
+
     def __init__(self, x, y, speed_x, speed_y):
         pygame.sprite.Sprite.__init__(self)
         self.x = x
@@ -45,6 +47,12 @@ class Enemy(pygame.sprite.Sprite):
 
         self.rect.x = self.x
         self.rect.y = self.y
+
+    def hit(self, damage):
+        self.lifes = self.lifes - damage
+        if self.lifes <= 0:
+            self.kill()
+
 
 class EnemyOne(Enemy):
     def __init__(self, x, y):
@@ -194,6 +202,8 @@ class Player(pygame.sprite.Sprite):
 
     max_bullets = 20
 
+    lifes = 3 #TODO Change
+
     def __init__(self, x, y, sprite):
         pygame.sprite.Sprite.__init__(self)
 
@@ -326,6 +336,11 @@ class Player(pygame.sprite.Sprite):
     def set_shoot(self, b):
         self.is_shoot = b
 
+    def hit(self, damage):
+        self.lifes = self.lifes - damage
+        if self.lifes <= 0:
+            game_over()
+
 def check_collisions():
     check_collisions_player()
     check_collisions_enemys()
@@ -340,13 +355,13 @@ def check_collisions_player():
        if collides( bullet.x, bullet.y, bullet.width, bullet.height
                   , player_x, player_y, player_width, player_height ):
            bullet.kill()
-           #player.hit(1)
+           player.hit(1)
     enemy_list = enemy_sprites.sprites()
     for enemy in enemy_list:
         if collides( enemy.x, enemy.y, enemy.width, enemy.height
                    , player_x, player_y, player_width, player_height ):
             enemy.kill()
-            #player.hit(3)
+            player.hit(3)
 
 def check_collisions_enemys():
     bullet_list = player_bullet_sprites.sprites()
@@ -356,7 +371,7 @@ def check_collisions_enemys():
             if collides( bullet.x, bullet.y, bullet.width, bullet.height
                        , enemy.x, enemy.y, enemy.width, enemy.height):
                 bullet.kill()
-                #enemy.hit()
+                enemy.hit(1)
 
 
 def collides(x1, y1, width1, height1, x2, y2, width2, height2):
@@ -365,6 +380,9 @@ def collides(x1, y1, width1, height1, x2, y2, width2, height2):
         return False
     else:
         return True
+
+def game_over():
+    #sys.exit()
 
 pygame.init()
 screen_width = 1500
