@@ -73,10 +73,14 @@ class EnemyTwo(Enemy):
             self.frames_since_shot = self.frames_since_shot + 1
 
     def shoot(self):
+        r_x = random.random()
+        r_y = random.random()
+
         center_player_x = player.rect.x + player.width / 2
         center_player_y = player.rect.y + player.height / 2
         center_self_x = self.rect.x + self.width / 2
         center_self_y = self.rect.y + self.height / 2
+
         distance_x = 0.0
         distance_y = 0.0
         distance_x = center_player_x - center_self_x
@@ -84,10 +88,15 @@ class EnemyTwo(Enemy):
         distance_diagonal = math.sqrt( distance_x * distance_x 
                                      + distance_y * distance_y)
         max_speed = 8 #TODO Change
-        speed_bullet_x = (max_speed * distance_x) / distance_diagonal
-        speed_bullet_y = (max_speed * distance_y) / distance_diagonal
+
+        speed_bullet_x = ((max_speed * distance_x) / distance_diagonal
+                          + r_x - 0.5)
+        speed_bullet_y = ((max_speed * distance_y) / distance_diagonal
+                          + r_y - 0.5)
+
         bullet_x = 0
         bullet_y = 0
+
         if speed_bullet_x >= 0 and speed_bullet_y >= 0:
             bullet_x = self.rect.x + self.width
             bullet_y = self.rect.y + self.height
