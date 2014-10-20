@@ -4,6 +4,7 @@ import pygame
 import math
 from pygame.locals import *
 import random
+import bar
 
 if not pygame.font: print 'Warning, fonts disabled'
 if not pygame.mixer: print 'Warning, sound disabled'
@@ -18,13 +19,11 @@ class Enemy(pygame.sprite.Sprite):
     speed_x = 0
     speed_y = 0
 
-    tot_appear_time = 120
+    tot_appear_time = 60
     appear_time = 0
 
-    tot_lifes = 3
-    lifes = tot_lifes
 
-    def __init__(self, x, y, speed_x, speed_y):
+    def __init__(self, x, y, speed_x, speed_y,tot_lifes):
         pygame.sprite.Sprite.__init__(self)
         self.x = x
         self.y = y
@@ -32,6 +31,8 @@ class Enemy(pygame.sprite.Sprite):
         self.speed_y = speed_y
         self.screen_width = screen_width
         self.screen_height = screen_height
+        self.tot_lifes = tot_lifes
+        self.lifes = self.tot_lifes
 
     def update(self):
         # Update color
@@ -66,9 +67,21 @@ class Enemy(pygame.sprite.Sprite):
         self.lifes = self.lifes - damage
         if self.lifes <= 0:
             self.kill()
+            global score
+            global score_multiplier
+            score = score + self.hit_score * score_multiplier
+            score_multiplier = score_multiplier + 1
         else:
             color_list = list(self.color)
-            color_list[0] = color_list[0] + (255 / self.tot_lifes * damage)
+            orig_color_list = list(self.orig_color)
+            # for the rest
+            for i in range (1,3):
+                color_list[i] = int(color_list[i] - 
+                                 (orig_color_list[i] / self.tot_lifes * damage))
+                if color_list[i] < 0:
+                    color_list[i] = 0
+            # for red
+            color_list[0] = int(color_list[0] + (255 / self.tot_lifes * damage))
             self.color = tuple(color_list)
 
 class EnemyOne(Enemy):
@@ -76,34 +89,51 @@ class EnemyOne(Enemy):
         x = random.randrange(0,screen_width - self.width)
         y = random.randrange(0,screen_height - self.height)
 
-        speed_x = 2 + random.random()
-        speed_y = 2 + random.random()
+        speed_x = 1 + random.random() * 2
+        speed_y = 1 + random.random() * 2
 
-        Enemy.__init__(self, x, y, speed_x, speed_y)
+        if random.randrange(0,2) == 0:
+            speed_x = -speed_x
+        if random.randrange(0,2) == 0:
+            speed_y = -speed_y
+
+        Enemy.__init__(self, x, y, speed_x, speed_y,10)
 
         self.image = pygame.Surface([self.width, self.height])
-        self.color = (0,255,0)
+        self.orig_color = (0,255,0)
+        self.color = self.orig_color
         self.image.fill(self.color)
         self.rect = self.image.get_rect()
 
+        self.hit_score = enemy_one_score
+
 
 class EnemyTwo(Enemy):
+    bullet_color = (6,223,255)
     frames_since_shot = 0
 
     def __init__(self):
         x = random.randrange(0,screen_width - self.width)
         y = random.randrange(0,screen_height - self.height)
 
-        speed_x = 1 + random.random()
-        speed_y = 1 + random.random()
+        speed_x = random.random() * 2
+        speed_y = random.random() * 2
 
-        Enemy.__init__(self, x, y, speed_x, speed_y)
+        if random.randrange(0,2) == 0:
+            speed_x = -speed_x
+        if random.randrange(0,2) == 0:
+            speed_y = -speed_y
+
+        Enemy.__init__(self, x, y, speed_x, speed_y,3)
         self.image = pygame.Surface([self.width, self.height])
-        self.color = (0,0,255)
+        self.orig_color = (0,0,255)
+        self.color = self.orig_color
         self.image.fill(self.color)
         self.rect = self.image.get_rect()
 
         self.shoot_interval = random.randrange(40,300)
+
+        self.hit_score = enemy_two_score
 
     def update(self):
         Enemy.update(self)
@@ -152,7 +182,8 @@ class EnemyTwo(Enemy):
             bullet_x = self.rect.x
             bullet_y = self.rect.y
 
-        bullet = Bullet(bullet_x, bullet_y, speed_bullet_x, speed_bullet_y, 180)
+        bullet = Bullet(bullet_x, bullet_y, speed_bullet_x, speed_bullet_y, 180
+                       , self.bullet_color)
         enemy_bullet_sprites.add(bullet)
         moving_sprites.add(bullet)
 
@@ -165,10 +196,10 @@ class Bullet(pygame.sprite.Sprite):
 
     transition_period = 25
 
-    def __init__(self, x, y,speed_x, speed_y, life_length):
+    def __init__(self, x, y,speed_x, speed_y, life_length, color):
         pygame.sprite.Sprite.__init__(self)
         self.image = pygame.Surface([self.width, self.height])
-        self.image.fill((255,255,92))
+        self.image.fill(color)
         self.rect = self.image.get_rect()
 
         self.x = x
@@ -234,9 +265,12 @@ class Player(pygame.sprite.Sprite):
 
     is_shoot = False
 
-    max_bullets = 50
+    max_bullets = 56
+    bullets_left = max_bullets
+    bullet_color = (255,229,6)
 
-    lifes = 3 #TODO Change
+    orig_lifes = 100
+    lifes = orig_lifes
 
     def __init__(self, x, y, sprite):
         pygame.sprite.Sprite.__init__(self)
@@ -262,6 +296,9 @@ class Player(pygame.sprite.Sprite):
 
         if self.is_shoot:
             self.shoot()
+            self.shoot()
+
+        self.bullets_left = self.max_bullets - len(player_bullet_sprites)
 
         self.x = self.x + self.speed_x
         self.y = self.y + self.speed_y
@@ -332,9 +369,9 @@ class Player(pygame.sprite.Sprite):
             direction = direction % (math.pi * 2)
             direction = direction + r_dir - 0.05 # <- to middle it out
 
-            tot = 15 + r_speed
+            tot = 10 + r_speed
 
-            life_length = 50 + r_life_length
+            life_length = 70 + r_life_length
 
             if direction < (math.pi / 2):
                 speed_x = tot * math.cos((math.pi / 2) - direction)
@@ -350,7 +387,7 @@ class Player(pygame.sprite.Sprite):
                 speed_y = tot * math.cos((2 * math.pi) - direction)
 
             b = Bullet(self.rect.center[0], self.rect.center[1]
-                      , speed_x, speed_y, life_length)
+                      , speed_x, speed_y, life_length, self.bullet_color)
             player_bullet_sprites.add(b)
             moving_sprites.add(b)
 
@@ -374,6 +411,8 @@ class Player(pygame.sprite.Sprite):
         self.lifes = self.lifes - damage
         if self.lifes <= 0:
             game_over()
+        global score_multiplier
+        score_multiplier = 1
 
 def check_collisions():
     check_collisions_player()
@@ -428,9 +467,26 @@ def spawn_enemy_two():
     all_sprites.add(e)
     moving_sprites.add(e)
 
+def draw_score():
+    score_text = score_font.render(str(score),1,(245,245,245))
+    multiplier_text = multiplier_font.render( "x" + str(score_multiplier)
+                                            , 1 , (150,150,150))
+    screen.blit(score_text,(750 - score_text.get_width() / 2,850))
+    screen.blit(multiplier_text,
+               ((746 - multiplier_text.get_width() / 2, 820)))
+    
+
 pygame.init()
 screen_width = 1500
 screen_height = 900
+
+score = 0
+score_multiplier = 1
+score_font = pygame.font.Font("Munro.ttf", 48)
+multiplier_font = pygame.font.Font("Munro.ttf", 24)
+
+enemy_one_score = 5
+enemy_two_score = 10
 
 screen = pygame.display.set_mode([screen_width,screen_height])
 pygame.display.set_caption('myGame')
@@ -464,6 +520,21 @@ spawn_2_started = False
 chance_enemy_1 = 0.005
 chance_enemy_2 = 0.002
 chance_multiplier = 0.000001
+
+# GUI
+health_color = (231,27,0)
+health_filled_opacity = 144
+health_background_opacity = 71
+health_bar = bar.Bar( 0,0, 750, 16, player.lifes / player.orig_lifes
+                    , health_color, health_filled_opacity
+                    , health_background_opacity)
+
+bullets_bar_color = (225,229,6)
+bullets_filled_opacity = 139
+bullets_background_opacity = 62
+bullets_bar = bar.Bar( 750, 0, 750, 16, player.bullets_left / player.max_bullets
+                     , bullets_bar_color, bullets_filled_opacity
+                     , bullets_background_opacity)
 
 
 clock = pygame.time.Clock()
@@ -506,19 +577,35 @@ while not done:
             spawn_2_started = True
     if random.random() <= chance_enemy_1:
         spawn_enemy_one()
-        print(chance_enemy_1)
     if spawn_2_started and random.random() <= chance_enemy_2:
         spawn_enemy_two()
-        print(chance_enemy_2)
 
     chance_enemy_2 = chance_enemy_2 + chance_multiplier
     chance_enemy_1 = chance_enemy_1 + chance_multiplier
     moving_sprites.update()
 
+    if player.lifes == 0:
+        health_part_filled = 0
+    else:
+        health_part_filled = player.lifes / player.orig_lifes
+    
+    if player.bullets_left == 0:
+        bullets_part_filled = 0
+    else:
+        bullets_part_filled = player.bullets_left / player.max_bullets
+
+    health_bar.update(health_part_filled)
+    bullets_bar.update(bullets_part_filled)
 
     screen.fill((0,0,0))
     player_bullet_sprites.draw(screen)
     enemy_bullet_sprites.draw(screen)
     all_sprites.draw(screen)
+
+    health_bar.draw(screen)
+    bullets_bar.draw(screen)
+
+    draw_score()
+
     pygame.display.flip()
     clock.tick(60)
