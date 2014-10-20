@@ -320,6 +320,27 @@ class Player(pygame.sprite.Sprite):
     def set_shoot(self, b):
         self.is_shoot = b
 
+def check_collisions():
+    check_collisions_player()
+    #check_collisions_enemys()
+
+def check_collisions_player():
+    bullet_list = enemy_bullet_sprites.sprites()
+    player_x = player.rect.x
+    player_y = player.rect.y
+    player_width = player.width
+    player_height = player.height
+    for bullet in bullet_list:
+       if collides( bullet.x, bullet.y, bullet.width, bullet.height
+                  , player_x, player_y, player_width, player_height ):
+           bullet.kill()
+
+def collides(x1, y1, width1, height1, x2, y2, width2, height2):
+    if (x1 + width1 < x2 or x1 > x2 + width2 
+        or y1 + height1 < y2 or y1 > y2 + height2):
+        return False
+    else:
+        return True
 
 pygame.init()
 screen_width = 1500
@@ -334,6 +355,7 @@ background.fill((0,0,0))
 all_sprites = pygame.sprite.Group()
 player_bullet_sprites = pygame.sprite.Group()
 enemy_bullet_sprites = pygame.sprite.Group()
+enemy_sprites = pygame.sprite.Group()
 moving_sprites = pygame.sprite.Group()
 
 player_tex = "triangle.png"
@@ -346,14 +368,14 @@ moving_sprites.add(player)
 enemy1 = EnemyOne(100,100)
 all_sprites.add(enemy1)
 moving_sprites.add(enemy1)
+enemy_sprites.add(enemy1)
 
 enemy2 = EnemyTwo(100,100)
 all_sprites.add(enemy2)
 moving_sprites.add(enemy2)
-
+enemy_sprites.add(enemy2)
 
 clock = pygame.time.Clock()
-
 
 done = False
 while not done:
@@ -383,6 +405,8 @@ while not done:
         if event.type == pygame.KEYUP and event.key == K_SPACE:
             player.set_shoot(False)
 
+
+    check_collisions()
 
     moving_sprites.update()
 
