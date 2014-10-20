@@ -3,6 +3,7 @@ import os, sys
 import pygame
 import math
 from pygame.locals import *
+import random
 
 if not pygame.font: print 'Warning, fonts disabled'
 if not pygame.mixer: print 'Warning, sound disabled'
@@ -103,17 +104,22 @@ class EnemyTwo(Enemy):
             bullet_x = self.rect.x
             bullet_y = self.rect.y
 
-        bullet = Bullet(bullet_x, bullet_y, speed_bullet_x, speed_bullet_y)
-        all_sprites.add(bullet)
+        bullet = Bullet(bullet_x, bullet_y, speed_bullet_x, speed_bullet_y, 180)
+        enemy_bullet_sprites.add(bullet)
         moving_sprites.add(bullet)
 
 
 class Bullet(pygame.sprite.Sprite):
     speed_x = 0.0
     speed_y = 0.0
-    def __init__(self, x, y,speed_x, speed_y):
+    width = 2
+    height = 2
+
+    transition_period = 25
+
+    def __init__(self, x, y,speed_x, speed_y, life_length):
         pygame.sprite.Sprite.__init__(self)
-        self.image = pygame.Surface([2,2])
+        self.image = pygame.Surface([self.width, self.height])
         self.image.fill((255,255,92))
         self.rect = self.image.get_rect()
 
@@ -126,20 +132,36 @@ class Bullet(pygame.sprite.Sprite):
         self.speed_x = float(speed_x)
         self.speed_y = float(speed_y)
 
+        self.life_length = life_length
+
     def update(self):
         self.x = self.x + self.speed_x
         self.y = self.y + self.speed_y
+
+        # bounce on walls
+        if self.x < 0:
+            self.x = 0
+            self.speed_x = abs(self.speed_x)
+        if self.x > screen_width - self.width:
+            self.x = screen_width - self.width
+            self.speed_x = -abs(self.speed_x)
+        if self.y < 0:
+            self.y = 0
+            self.speed_y = abs(self.speed_y)
+        if self.y > screen_height - self.height:
+            self.y = screen_height - self.height
+            self.speed_y = -abs(self.speed_y)
+
         self.rect.x = self.x
         self.rect.y = self.y
 
-        if self.rect.x < -2:
+        self.life_length = self.life_length - 1
+
+        if self.life_length <= 0:
             self.kill()
-        if self.rect.x > screen_width:
-            self.kill()
-        if self.rect.y < -2:
-            self.kill()
-        if self.rect.y > screen_height:
-            self.kill()
+        elif self.life_length <= self.transition_period:
+            opacity = self.life_length / self.transition_period * 256
+            self.image.set_alpha(opacity)
 
 class Player(pygame.sprite.Sprite):
     width = 50
@@ -163,6 +185,8 @@ class Player(pygame.sprite.Sprite):
     is_turn_left = False
 
     is_shoot = False
+
+    max_bullets = 20
 
     def __init__(self, x, y, sprite):
         pygame.sprite.Sprite.__init__(self)
@@ -246,40 +270,39 @@ class Player(pygame.sprite.Sprite):
                           * math.cos(direction - (math.pi / 2))))
 
     def shoot(self):
-        # Normalize the direction
-        direction = (math.pi * 2) - self.direction
-        direction = direction + math.pi
-        direction = direction % (math.pi * 2)
-        tot = 15
-
-        if direction < (math.pi / 2):
-            speed_x = tot * math.cos((math.pi / 2) - direction)
-            speed_y = tot * math.cos(direction)
-        elif direction < math.pi:
-            speed_x = tot * math.cos(direction - (math.pi / 2))
-            speed_y = -tot * math.cos(math.pi - direction)
-        elif direction < (math.pi * 1.5):
-            speed_x = -tot * math.cos((math.pi * 1.5) - direction)
-            speed_y = -tot * math.cos(direction - math.pi)
-        else:
-            speed_x = -tot * math.cos(direction - (1.5 * math.pi))
-            speed_y = tot * math.cos((2 * math.pi) - direction)
-
-        b = Bullet(self.rect.center[0], self.rect.center[1], speed_x, speed_y)
-        bullet_sprites.add(b)
-        moving_sprites.add(b)
-
-        #direction = self.direction - (math.pi / 2)
-        #y_partial = math.cos(direction)
-        #x_partial = math.cos(direction - (math.pi / 2))
-        #alpha = math.atan(x_partial / y_partial)
-        #max_speed = 2
-        #speed_x = math.sin(alpha) * max_speed
-        #print(speed_x)
-        #speed_y = math.cos(alpha) * max_speed
-        #b = Bullet(self.rect.center[0],self.rect.center[1],speed_x,speed_y)
-        #all_sprites.add(b)
-        #moving_sprites.add(b)
+        if len(player_bullet_sprites) <= self.max_bullets:
+            # Randomize all the things!!!
+            r_dir = random.random() / 5
+            r_speed = random.random() * 5
+            r_life_length = random.randrange(0,20)
+    
+            # Normalize the direction
+            direction = (math.pi * 2) - self.direction
+            direction = direction + math.pi
+            direction = direction % (math.pi * 2)
+            direction = direction + r_dir - 0.05 # <- to middle it out
+    
+            tot = 15 + r_speed
+    
+            life_length = 50 + r_life_length 
+    
+            if direction < (math.pi / 2):
+                speed_x = tot * math.cos((math.pi / 2) - direction)
+                speed_y = tot * math.cos(direction)
+            elif direction < math.pi:
+                speed_x = tot * math.cos(direction - (math.pi / 2))
+                speed_y = -tot * math.cos(math.pi - direction)
+            elif direction < (math.pi * 1.5):
+                speed_x = -tot * math.cos((math.pi * 1.5) - direction)
+                speed_y = -tot * math.cos(direction - math.pi)
+            else:
+                speed_x = -tot * math.cos(direction - (1.5 * math.pi))
+                speed_y = tot * math.cos((2 * math.pi) - direction)
+    
+            b = Bullet(self.rect.center[0], self.rect.center[1]
+                      , speed_x, speed_y, life_length)
+            player_bullet_sprites.add(b)
+            moving_sprites.add(b)
 
 
     def set_move_forward(self, b):
@@ -365,7 +388,8 @@ while not done:
 
 
     screen.fill((0,0,0))
-    bullet_sprites.draw(screen)
+    player_bullet_sprites.draw(screen)
+    enemy_bullet_sprites.draw(screen)
     all_sprites.draw(screen)
     pygame.display.flip()
     clock.tick(60)
