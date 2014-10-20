@@ -18,7 +18,11 @@ class Enemy(pygame.sprite.Sprite):
     speed_x = 0
     speed_y = 0
 
-    lifes = 3
+    tot_appear_time = 120
+    appear_time = 0
+
+    tot_lifes = 3
+    lifes = tot_lifes
 
     def __init__(self, x, y, speed_x, speed_y):
         pygame.sprite.Sprite.__init__(self)
@@ -30,6 +34,16 @@ class Enemy(pygame.sprite.Sprite):
         self.screen_height = screen_height
 
     def update(self):
+        # Update color
+        self.image.fill(self.color)
+
+        self.appear_time = self.appear_time + 1
+        if self.appear_time < self.tot_appear_time:
+            opacity = self.appear_time / self.tot_appear_time * 256
+            self.image.set_alpha(opacity)
+        else:
+            enemy_sprites.add(self)
+            self.image.set_alpha(255)
         self.x = self.x + self.speed_x
         self.y = self.y + self.speed_y
         if self.x < 0:
@@ -52,37 +66,57 @@ class Enemy(pygame.sprite.Sprite):
         self.lifes = self.lifes - damage
         if self.lifes <= 0:
             self.kill()
-
+        else:
+            color_list = list(self.color)
+            color_list[0] = color_list[0] + (255 / self.tot_lifes * damage)
+            self.color = tuple(color_list)
 
 class EnemyOne(Enemy):
-    def __init__(self, x, y):
-        Enemy.__init__(self, x, y,2,2)
+    def __init__(self):
+        x = random.randrange(0,screen_width - self.width)
+        y = random.randrange(0,screen_height - self.height)
+
+        speed_x = 2 + random.random()
+        speed_y = 2 + random.random()
+
+        Enemy.__init__(self, x, y, speed_x, speed_y)
+
         self.image = pygame.Surface([self.width, self.height])
-        self.image.fill((0,255,0))
+        self.color = (0,255,0)
+        self.image.fill(self.color)
         self.rect = self.image.get_rect()
 
 
 class EnemyTwo(Enemy):
-    shoot_interval = 180
     frames_since_shot = 0
 
-    def __init__(self, x, y):
-        Enemy.__init__(self, x, y, 1, 1)
+    def __init__(self):
+        x = random.randrange(0,screen_width - self.width)
+        y = random.randrange(0,screen_height - self.height)
+
+        speed_x = 1 + random.random()
+        speed_y = 1 + random.random()
+
+        Enemy.__init__(self, x, y, speed_x, speed_y)
         self.image = pygame.Surface([self.width, self.height])
-        self.image.fill((0,0,255))
+        self.color = (0,0,255)
+        self.image.fill(self.color)
         self.rect = self.image.get_rect()
+
+        self.shoot_interval = random.randrange(40,300)
 
     def update(self):
         Enemy.update(self)
         if self.frames_since_shot > self.shoot_interval:
             self.shoot()
             self.frames_since_shot = 0
+            self.shoot_interval = random.randrange(40,300)
         else:
             self.frames_since_shot = self.frames_since_shot + 1
 
     def shoot(self):
-        r_x = random.random()
-        r_y = random.random()
+        r_x = random.random() * 4
+        r_y = random.random() * 4
 
         center_player_x = player.rect.x + player.width / 2
         center_player_y = player.rect.y + player.height / 2
@@ -95,12 +129,12 @@ class EnemyTwo(Enemy):
         distance_y = center_player_y - center_self_y
         distance_diagonal = math.sqrt( distance_x * distance_x 
                                      + distance_y * distance_y)
-        max_speed = 8 #TODO Change
+        max_speed = 8 
 
         speed_bullet_x = ((max_speed * distance_x) / distance_diagonal
-                          + r_x - 0.5)
+                          + r_x - 2)
         speed_bullet_y = ((max_speed * distance_y) / distance_diagonal
-                          + r_y - 0.5)
+                          + r_y - 2)
 
         bullet_x = 0
         bullet_y = 0
@@ -200,7 +234,7 @@ class Player(pygame.sprite.Sprite):
 
     is_shoot = False
 
-    max_bullets = 20
+    max_bullets = 50
 
     lifes = 3 #TODO Change
 
@@ -384,6 +418,16 @@ def collides(x1, y1, width1, height1, x2, y2, width2, height2):
 def game_over():
     sys.exit()
 
+def spawn_enemy_one():
+    e = EnemyOne()
+    all_sprites.add(e)
+    moving_sprites.add(e)
+
+def spawn_enemy_two():
+    e = EnemyTwo()
+    all_sprites.add(e)
+    moving_sprites.add(e)
+
 pygame.init()
 screen_width = 1500
 screen_height = 900
@@ -407,15 +451,20 @@ player = Player (screen_width / 2, screen_height / 2, player_sprite)
 all_sprites.add(player)
 moving_sprites.add(player)
 
-enemy1 = EnemyOne(100,100)
-all_sprites.add(enemy1)
-moving_sprites.add(enemy1)
-enemy_sprites.add(enemy1)
+# 7 enemys in the beginning
+for i in range(0,7):
+    e = EnemyOne()
+    all_sprites.add(e)
+    moving_sprites.add(e)
 
-enemy2 = EnemyTwo(100,100)
-all_sprites.add(enemy2)
-moving_sprites.add(enemy2)
-enemy_sprites.add(enemy2)
+#Spawn variables
+frames_till_first_enemy_2 = 600
+frames_since_start = 0
+spawn_2_started = False
+chance_enemy_1 = 0.005
+chance_enemy_2 = 0.002
+chance_multiplier = 0.000001
+
 
 clock = pygame.time.Clock()
 
@@ -450,6 +499,20 @@ while not done:
 
     check_collisions()
 
+    #spawning logic
+    if not spawn_2_started:
+        frames_since_start = frames_since_start + 1
+        if frames_since_start > frames_till_first_enemy_2:
+            spawn_2_started = True
+    if random.random() <= chance_enemy_1:
+        spawn_enemy_one()
+        print(chance_enemy_1)
+    if spawn_2_started and random.random() <= chance_enemy_2:
+        spawn_enemy_two()
+        print(chance_enemy_2)
+
+    chance_enemy_2 = chance_enemy_2 + chance_multiplier
+    chance_enemy_1 = chance_enemy_1 + chance_multiplier
     moving_sprites.update()
 
 
