@@ -164,8 +164,8 @@ class Bullet(pygame.sprite.Sprite):
             self.image.set_alpha(opacity)
 
 class Player(pygame.sprite.Sprite):
-    width = 50
-    height = 50
+    width = 36
+    height = 36
 
     speed_x = 0
     speed_y = 0
@@ -334,6 +334,13 @@ def check_collisions_player():
        if collides( bullet.x, bullet.y, bullet.width, bullet.height
                   , player_x, player_y, player_width, player_height ):
            bullet.kill()
+           #player.hit(1)
+    enemy_list = enemy_sprites.sprites()
+    for enemy in enemy_list:
+        if collides( enemy.x, enemy.y, enemy.width, enemy.height
+                   , player_x, player_y, player_width, player_height ):
+            enemy.kill()
+            #player.hit(3)
 
 def collides(x1, y1, width1, height1, x2, y2, width2, height2):
     if (x1 + width1 < x2 or x1 > x2 + width2 
