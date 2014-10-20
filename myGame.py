@@ -328,7 +328,7 @@ class Player(pygame.sprite.Sprite):
 
 def check_collisions():
     check_collisions_player()
-    #check_collisions_enemys()
+    check_collisions_enemys()
 
 def check_collisions_player():
     bullet_list = enemy_bullet_sprites.sprites()
@@ -347,6 +347,17 @@ def check_collisions_player():
                    , player_x, player_y, player_width, player_height ):
             enemy.kill()
             #player.hit(3)
+
+def check_collisions_enemys():
+    bullet_list = player_bullet_sprites.sprites()
+    enemy_list = enemy_sprites.sprites()
+    for bullet in bullet_list:
+        for enemy in enemy_list:
+            if collides( bullet.x, bullet.y, bullet.width, bullet.height
+                       , enemy.x, enemy.y, enemy.width, enemy.height):
+                bullet.kill()
+                #enemy.hit()
+
 
 def collides(x1, y1, width1, height1, x2, y2, width2, height2):
     if (x1 + width1 < x2 or x1 > x2 + width2
