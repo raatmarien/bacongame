@@ -382,7 +382,7 @@ def collides(x1, y1, width1, height1, x2, y2, width2, height2):
         return True
 
 def game_over():
-    #sys.exit()
+    sys.exit()
 
 pygame.init()
 screen_width = 1500
