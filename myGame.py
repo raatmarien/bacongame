@@ -28,8 +28,8 @@ class Enemy(pygame.sprite.Sprite):
         self.screen_height = screen_height
 
     def update(self):
-        self.x = self.x + self.speed_x 
-        self.y = self.y + self.speed_y 
+        self.x = self.x + self.speed_x
+        self.y = self.y + self.speed_y
         if self.x < 0:
             self.x = 0
             self.speed_x = abs(self.speed_x)
@@ -57,7 +57,7 @@ class EnemyOne(Enemy):
 class EnemyTwo(Enemy):
     shoot_interval = 180
     frames_since_shot = 0
-    
+
     def __init__(self, x, y):
         Enemy.__init__(self, x, y, 1, 1)
         self.image = pygame.Surface([self.width, self.height])
@@ -70,7 +70,7 @@ class EnemyTwo(Enemy):
             self.shoot()
             self.frames_since_shot = 0
         else:
-            self.frames_since_shot = self.frames_since_shot + 1 
+            self.frames_since_shot = self.frames_since_shot + 1
 
     def shoot(self):
         center_player_x = player.rect.x + player.width / 2
@@ -212,7 +212,7 @@ class Player(pygame.sprite.Sprite):
 
         if self.is_shoot:
             self.shoot()
-        
+
         self.x = self.x + self.speed_x
         self.y = self.y + self.speed_y
         self.direction = self.direction + self.turn_speed
@@ -245,7 +245,7 @@ class Player(pygame.sprite.Sprite):
             self.y = 0
         if self.y > screen_height - self.height:
             self.y = screen_height - self.height
-    
+
     def turn_right(self):
         self.turn_speed = self.turn_speed - self.turn_acceleration
 
@@ -255,17 +255,17 @@ class Player(pygame.sprite.Sprite):
 
     def move_forward(self):
         direction = self.direction - (math.pi / 2)
-        self.speed_x = (self.speed_x 
+        self.speed_x = (self.speed_x
                        + (self.movement_acceleration * math.cos(direction)))
-        self.speed_y = (self.speed_y 
+        self.speed_y = (self.speed_y
                        + (self.movement_acceleration
                           * math.cos(direction - (math.pi / 2))))
 
     def move_backward(self):
         direction = self.direction - (math.pi / 2)
-        self.speed_x = (self.speed_x 
+        self.speed_x = (self.speed_x
                        - (self.movement_acceleration * math.cos(direction)))
-        self.speed_y = (self.speed_y 
+        self.speed_y = (self.speed_y
                        - (self.movement_acceleration
                           * math.cos(direction - (math.pi / 2))))
 
@@ -275,17 +275,17 @@ class Player(pygame.sprite.Sprite):
             r_dir = random.random() / 5
             r_speed = random.random() * 5
             r_life_length = random.randrange(0,20)
-    
+
             # Normalize the direction
             direction = (math.pi * 2) - self.direction
             direction = direction + math.pi
             direction = direction % (math.pi * 2)
             direction = direction + r_dir - 0.05 # <- to middle it out
-    
+
             tot = 15 + r_speed
-    
-            life_length = 50 + r_life_length 
-    
+
+            life_length = 50 + r_life_length
+
             if direction < (math.pi / 2):
                 speed_x = tot * math.cos((math.pi / 2) - direction)
                 speed_y = tot * math.cos(direction)
@@ -298,7 +298,7 @@ class Player(pygame.sprite.Sprite):
             else:
                 speed_x = -tot * math.cos(direction - (1.5 * math.pi))
                 speed_y = tot * math.cos((2 * math.pi) - direction)
-    
+
             b = Bullet(self.rect.center[0], self.rect.center[1]
                       , speed_x, speed_y, life_length)
             player_bullet_sprites.add(b)
@@ -307,13 +307,13 @@ class Player(pygame.sprite.Sprite):
 
     def set_move_forward(self, b):
         self.is_move_forward = b
-    
+
     def set_move_backward(self, b):
         self.is_move_backward = b
 
     def set_turn_right(self, b):
         self.is_turn_right = b
-    
+
     def set_turn_left(self, b):
         self.is_turn_left = b
 
@@ -336,7 +336,7 @@ def check_collisions_player():
            bullet.kill()
 
 def collides(x1, y1, width1, height1, x2, y2, width2, height2):
-    if (x1 + width1 < x2 or x1 > x2 + width2 
+    if (x1 + width1 < x2 or x1 > x2 + width2
         or y1 + height1 < y2 or y1 > y2 + height2):
         return False
     else:
