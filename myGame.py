@@ -81,14 +81,11 @@ class EnemyTwo(Enemy):
         distance_y = 0.0
         distance_x = center_player_x - center_self_x
         distance_y = center_player_y - center_self_y
-        distance_diagonal = distance_x * distance_x + distance_y * distance_y
-        max_speed = 2000 #TODO Change
-        divider = distance_diagonal / max_speed
-        speed_bullet_x = distance_x / divider
-        speed_bullet_y = distance_y / divider
-        print(speed_bullet_x)
-        print(speed_bullet_y)
-        print('\n')
+        distance_diagonal = math.sqrt( distance_x * distance_x 
+                                     + distance_y * distance_y)
+        max_speed = 8 #TODO Change
+        speed_bullet_x = (max_speed * distance_x) / distance_diagonal
+        speed_bullet_y = (max_speed * distance_y) / distance_diagonal
         bullet_x = 0
         bullet_y = 0
         if speed_bullet_x >= 0 and speed_bullet_y >= 0:
