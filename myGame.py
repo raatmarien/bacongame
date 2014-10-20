@@ -1,3 +1,4 @@
+from __future__ import division
 import os, sys
 import pygame
 import math
@@ -5,35 +6,6 @@ from pygame.locals import *
 
 if not pygame.font: print 'Warning, fonts disabled'
 if not pygame.mixer: print 'Warning, sound disabled'
-
-
-def load_image(name, colorkey=None):
-    fullname = os.path.join('data', name)
-    try:
-        image = pygame.image.load(fullname)
-    except pygame.error, message:
-        print 'Cannot load image:', name
-        raise SystemExit, message
-    image = image.convert()
-    if colorkey is not None:
-        if colorkey is -1:
-            colorkey = image.get_at((0,0))
-        image.set_colorkey(colorkey, RLEACCEL)
-    return image, image.get_rect()
-
-
-def load_sound(name):
-    class NoneSound:
-        def play(self): pass
-    if not pygame.mixer:
-        return NoneSound()
-    fullname = os.path.join('data', name)
-    try:
-        sound = pygame.mixer.Sound(fullname)
-    except pygame.error, message:
-        print 'Cannot load sound:', wav
-        raise SystemExit, message
-    return sound
 
 class Enemy(pygame.sprite.Sprite):
     width = 20
@@ -75,28 +47,90 @@ class Enemy(pygame.sprite.Sprite):
 
 class EnemyOne(Enemy):
     def __init__(self, x, y):
-        Enemy.__init__(self, x, y,8,8)
+        Enemy.__init__(self, x, y,2,2)
         self.image = pygame.Surface([self.width, self.height])
         self.image.fill((0,255,0))
         self.rect = self.image.get_rect()
 
 
+class EnemyTwo(Enemy):
+    shoot_interval = 180
+    frames_since_shot = 0
+    
+    def __init__(self, x, y):
+        Enemy.__init__(self, x, y, 1, 1)
+        self.image = pygame.Surface([self.width, self.height])
+        self.image.fill((0,0,255))
+        self.rect = self.image.get_rect()
+
+    def update(self):
+        Enemy.update(self)
+        if self.frames_since_shot > self.shoot_interval:
+            self.shoot()
+            self.frames_since_shot = 0
+        else:
+            self.frames_since_shot = self.frames_since_shot + 1 
+
+    def shoot(self):
+        center_player_x = player.rect.x + player.width / 2
+        center_player_y = player.rect.y + player.height / 2
+        center_self_x = self.rect.x + self.width / 2
+        center_self_y = self.rect.y + self.height / 2
+        distance_x = 0.0
+        distance_y = 0.0
+        distance_x = center_player_x - center_self_x
+        distance_y = center_player_y - center_self_y
+        distance_diagonal = distance_x * distance_x + distance_y * distance_y
+        max_speed = 2000 #TODO Change
+        divider = distance_diagonal / max_speed
+        speed_bullet_x = distance_x / divider
+        speed_bullet_y = distance_y / divider
+        print(speed_bullet_x)
+        print(speed_bullet_y)
+        print('\n')
+        bullet_x = 0
+        bullet_y = 0
+        if speed_bullet_x >= 0 and speed_bullet_y >= 0:
+            bullet_x = self.rect.x + self.width
+            bullet_y = self.rect.y + self.height
+        elif speed_bullet_x >= 0 and speed_bullet_y <= 0 :
+            bullet_x = self.rect.x + self.width
+            bullet_y = self.rect.y
+        elif speed_bullet_x <= 0 and speed_bullet_y >= 0:
+            bullet_x = self.rect.x
+            bullet_y = self.rect.y + self.height
+        elif speed_bullet_x <= 0 and speed_bullet_y <= 0 :
+            bullet_x = self.rect.x
+            bullet_y = self.rect.y
+
+        bullet = Bullet(bullet_x, bullet_y, speed_bullet_x, speed_bullet_y)
+        all_sprites.add(bullet)
+        moving_sprites.add(bullet)
+
+
 class Bullet(pygame.sprite.Sprite):
-    def __init__(self, x, y, speed_x, speed_y):
+    speed_x = 0.0
+    speed_y = 0.0
+    def __init__(self, x, y,speed_x, speed_y):
         pygame.sprite.Sprite.__init__(self)
         self.image = pygame.Surface([2,2])
         self.image.fill((255,255,92))
         self.rect = self.image.get_rect()
 
+        self.x = x
+        self.y = y
+
         self.rect.x = x
         self.rect.y = y
 
-        self.speed_x = speed_x
-        self.speed_y = speed_y
+        self.speed_x = float(speed_x)
+        self.speed_y = float(speed_y)
 
     def update(self):
-        self.rect.x = self.rect.x + self.speed_x
-        self.rect.y = self.rect.y + self.speed_y
+        self.x = self.x + self.speed_x
+        self.y = self.y + self.speed_y
+        self.rect.x = self.x
+        self.rect.y = self.y
 
         if self.rect.x < -2:
             self.kill()
@@ -108,14 +142,14 @@ class Bullet(pygame.sprite.Sprite):
             self.kill()
 
 class Player(pygame.sprite.Sprite):
-    width = 100
-    height = 100
+    width = 50
+    height = 50
 
     speed_x = 0
     speed_y = 0
 
-    speed_friction = 0.92
-    movement_acceleration = 0.9
+    speed_friction = 0.95
+    movement_acceleration = 0.3
 
     direction = 0
     turn_speed = 0
@@ -212,9 +246,40 @@ class Player(pygame.sprite.Sprite):
                           * math.cos(direction - (math.pi / 2))))
 
     def shoot(self):
-        b = Bullet(self.rect.center[0],self.rect.center[1],2,2)
-        all_sprites.add(b)
+        # Normalize the direction
+        direction = (math.pi * 2) - self.direction
+        direction = direction + math.pi
+        direction = direction % (math.pi * 2)
+        tot = 15
+
+        if direction < (math.pi / 2):
+            speed_x = tot * math.cos((math.pi / 2) - direction)
+            speed_y = tot * math.cos(direction)
+        elif direction < math.pi:
+            speed_x = tot * math.cos(direction - (math.pi / 2))
+            speed_y = -tot * math.cos(math.pi - direction)
+        elif direction < (math.pi * 1.5):
+            speed_x = -tot * math.cos((math.pi * 1.5) - direction)
+            speed_y = -tot * math.cos(direction - math.pi)
+        else:
+            speed_x = -tot * math.cos(direction - (1.5 * math.pi))
+            speed_y = tot * math.cos((2 * math.pi) - direction)
+
+        b = Bullet(self.rect.center[0], self.rect.center[1], speed_x, speed_y)
+        bullet_sprites.add(b)
         moving_sprites.add(b)
+
+        #direction = self.direction - (math.pi / 2)
+        #y_partial = math.cos(direction)
+        #x_partial = math.cos(direction - (math.pi / 2))
+        #alpha = math.atan(x_partial / y_partial)
+        #max_speed = 2
+        #speed_x = math.sin(alpha) * max_speed
+        #print(speed_x)
+        #speed_y = math.cos(alpha) * max_speed
+        #b = Bullet(self.rect.center[0],self.rect.center[1],speed_x,speed_y)
+        #all_sprites.add(b)
+        #moving_sprites.add(b)
 
 
     def set_move_forward(self, b):
@@ -244,6 +309,8 @@ background = background.convert();
 background.fill((0,0,0))
 
 all_sprites = pygame.sprite.Group()
+player_bullet_sprites = pygame.sprite.Group()
+enemy_bullet_sprites = pygame.sprite.Group()
 moving_sprites = pygame.sprite.Group()
 
 player_tex = "triangle.png"
@@ -257,9 +324,10 @@ enemy1 = EnemyOne(100,100)
 all_sprites.add(enemy1)
 moving_sprites.add(enemy1)
 
-bullet = Bullet(0,0,2,2)
-all_sprites.add(bullet)
-moving_sprites.add(bullet)
+enemy2 = EnemyTwo(100,100)
+all_sprites.add(enemy2)
+moving_sprites.add(enemy2)
+
 
 clock = pygame.time.Clock()
 
@@ -297,6 +365,7 @@ while not done:
 
 
     screen.fill((0,0,0))
+    bullet_sprites.draw(screen)
     all_sprites.draw(screen)
     pygame.display.flip()
     clock.tick(60)
