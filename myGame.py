@@ -5,6 +5,9 @@ import math
 from pygame.locals import *
 import random
 import bar
+import bullet
+
+Bullet = bullet.Bullet
 
 if not pygame.font: print 'Warning, fonts disabled'
 if not pygame.mixer: print 'Warning, sound disabled'
@@ -21,6 +24,8 @@ class Enemy(pygame.sprite.Sprite):
 
     tot_appear_time = 60
     appear_time = 0
+
+    hit_score = 50
 
 
     def __init__(self, x, y, speed_x, speed_y,tot_lifes):
@@ -81,7 +86,10 @@ class Enemy(pygame.sprite.Sprite):
                 if color_list[i] < 0:
                     color_list[i] = 0
             # for red
-            color_list[0] = int(color_list[0] + (255 / self.tot_lifes * damage))
+            color_list[0] = int(color_list[0] + ((255 - orig_color_list[0])
+                                                  / self.tot_lifes * damage))
+            if color_list[0] > 255:
+                color_list[0] = 255
             self.color = tuple(color_list)
 
 class EnemyOne(Enemy):
@@ -97,7 +105,7 @@ class EnemyOne(Enemy):
         if random.randrange(0,2) == 0:
             speed_y = -speed_y
 
-        Enemy.__init__(self, x, y, speed_x, speed_y,10)
+        Enemy.__init__(self, x, y, speed_x, speed_y,5)
 
         self.image = pygame.Surface([self.width, self.height])
         self.orig_color = (0,255,0)
@@ -131,7 +139,7 @@ class EnemyTwo(Enemy):
         self.image.fill(self.color)
         self.rect = self.image.get_rect()
 
-        self.shoot_interval = random.randrange(40,300)
+        self.shoot_interval = random.randrange(200,300)
 
         self.hit_score = enemy_two_score
 
@@ -140,7 +148,7 @@ class EnemyTwo(Enemy):
         if self.frames_since_shot > self.shoot_interval:
             self.shoot()
             self.frames_since_shot = 0
-            self.shoot_interval = random.randrange(40,300)
+            self.shoot_interval = random.randrange(200,300)
         else:
             self.frames_since_shot = self.frames_since_shot + 1
 
@@ -186,6 +194,44 @@ class EnemyTwo(Enemy):
                        , self.bullet_color)
         enemy_bullet_sprites.add(bullet)
         moving_sprites.add(bullet)
+        
+
+class EnemyThree(EnemyOne):
+    bursted = False
+
+    def __init__(self, x, y, width, height, bursted, speed_x, speed_y):
+        self.hit_score = enemy_three_score
+        self.bursted = bursted
+        if not self.bursted:
+            EnemyOne.__init__(self)
+        else:
+            self.image = pygame.Surface([width, height])
+            self.rect = self.image.get_rect()
+            Enemy.__init__(self, x, y, width, height, 1)
+            self.speed_x = speed_x
+            self.speed_y = speed_y
+
+        self.orig_color = (255,100,0)
+        self.color = self.orig_color
+
+            
+    def hit(self, damage):
+        Enemy.hit(self, damage)
+        if not self.bursted:
+            if self.lifes <= 2:
+                e1 = EnemyThree(self.x - 10,  self.y - 10, 10, 10, True, -5, -5)
+                all_sprites.add(e1)
+                moving_sprites.add(e1)
+                e2 = EnemyThree(self.x + 10,  self.y - 10, 10, 10, True, +5, -5)
+                all_sprites.add(e2)
+                moving_sprites.add(e2)
+                e3 = EnemyThree(self.x - 10,  self.y + 10, 10, 10, True, -5, +5)
+                all_sprites.add(e3)
+                moving_sprites.add(e3)
+                e4 = EnemyThree(self.x + 10,  self.y + 10, 10, 10, True, +5, +5)
+                all_sprites.add(e4)
+                moving_sprites.add(e4)
+                self.kill()
 
 
 class Bullet(pygame.sprite.Sprite):
@@ -267,7 +313,7 @@ class Player(pygame.sprite.Sprite):
 
     max_bullets = 56
     bullets_left = max_bullets
-    bullet_color = (255,229,6)
+    bullet_color = (255,255,128)
 
     orig_lifes = 100
     lifes = orig_lifes
@@ -320,6 +366,9 @@ class Player(pygame.sprite.Sprite):
 
         self.rect.x = self.x
         self.rect.y = self.y
+
+        if self.lifes < 100:
+            self.lifes = self.lifes + 0.01
 
         self.stop_on_walls()
 
@@ -414,6 +463,10 @@ class Player(pygame.sprite.Sprite):
         global score_multiplier
         score_multiplier = 1
 
+        global hit_flash_opacity
+        hit_flash_opacity = 120
+
+
 def check_collisions():
     check_collisions_player()
     check_collisions_enemys()
@@ -428,13 +481,13 @@ def check_collisions_player():
        if collides( bullet.x, bullet.y, bullet.width, bullet.height
                   , player_x, player_y, player_width, player_height ):
            bullet.kill()
-           player.hit(1)
+           player.hit(3)
     enemy_list = enemy_sprites.sprites()
     for enemy in enemy_list:
         if collides( enemy.x, enemy.y, enemy.width, enemy.height
                    , player_x, player_y, player_width, player_height ):
             enemy.kill()
-            player.hit(3)
+            player.hit(10)
 
 def check_collisions_enemys():
     bullet_list = player_bullet_sprites.sprites()
@@ -455,7 +508,7 @@ def collides(x1, y1, width1, height1, x2, y2, width2, height2):
         return True
 
 def game_over():
-    sys.exit()
+    retry_screen()
 
 def spawn_enemy_one():
     e = EnemyOne()
@@ -467,145 +520,278 @@ def spawn_enemy_two():
     all_sprites.add(e)
     moving_sprites.add(e)
 
+def spawn_enemy_three():
+    e_3 = EnemyThree(0,0,0,0,False,0,0)
+    all_sprites.add(e_3)
+    moving_sprites.add(e_3)
+
+
 def draw_score():
+    #change highscore color if same as current score
+    if highscore == score:
+        highscore_color = (255,255,128)
+    else:
+        highscore_color = (150,150,150)
     score_text = score_font.render(str(score),1,(245,245,245))
     multiplier_text = multiplier_font.render( "x" + str(score_multiplier)
                                             , 1 , (150,150,150))
+    highscore_text = multiplier_font.render( "Highscore: " + str(highscore)
+                                      , 1, highscore_color)
     screen.blit(score_text,(750 - score_text.get_width() / 2,850))
     screen.blit(multiplier_text,
                ((746 - multiplier_text.get_width() / 2, 820)))
+    screen.blit(highscore_text,( 1490 - highscore_text.get_width()
+                               , 860))
+
+def retry_screen():
+    ldone = False
+    global done
+
+    # Save highscore
+    highscore_file = open(".highscore", 'w')
+    highscore_file.write(str(highscore))
     
+    end_transparancy = 230
+    transparancy_now = 0
 
-pygame.init()
-screen_width = 1500
-screen_height = 900
+    orig_color = 120
+    color = orig_color
 
-score = 0
-score_multiplier = 1
-score_font = pygame.font.Font("Munro.ttf", 48)
-multiplier_font = pygame.font.Font("Munro.ttf", 24)
+    fade = pygame.sprite.Sprite()
+    fade.image = pygame.Surface([screen_width,screen_height])
+    fade.image.set_alpha(transparancy_now)
+    fade.rect = fade.image.get_rect()
+    fade_g = pygame.sprite.Group()
+    fade_g.add(fade)
+    while not ldone:
+        fade.image.set_alpha(transparancy_now)
+        if transparancy_now < end_transparancy:
+            transparancy_now = transparancy_now + 12
 
-enemy_one_score = 5
-enemy_two_score = 10
+        if color <= orig_color:
+            up = True
+        if color >= 255:
+            up = False
+        if up:
+            color = color + 10
+        else:
+            color = color - 10
+        if color > 255:
+            color = 255
 
-screen = pygame.display.set_mode([screen_width,screen_height])
-pygame.display.set_caption('myGame')
-background = pygame.Surface(screen.get_size())
-background = background.convert();
-background.fill((0,0,0))
-
-all_sprites = pygame.sprite.Group()
-player_bullet_sprites = pygame.sprite.Group()
-enemy_bullet_sprites = pygame.sprite.Group()
-enemy_sprites = pygame.sprite.Group()
-moving_sprites = pygame.sprite.Group()
-
-player_tex = "triangle.png"
-player_sprite = pygame.image.load(player_tex).convert_alpha()
-
-player = Player (screen_width / 2, screen_height / 2, player_sprite)
-all_sprites.add(player)
-moving_sprites.add(player)
-
-# 7 enemys in the beginning
-for i in range(0,7):
-    e = EnemyOne()
-    all_sprites.add(e)
-    moving_sprites.add(e)
-
-#Spawn variables
-frames_till_first_enemy_2 = 600
-frames_since_start = 0
-spawn_2_started = False
-chance_enemy_1 = 0.005
-chance_enemy_2 = 0.002
-chance_multiplier = 0.000001
-
-# GUI
-health_color = (231,27,0)
-health_filled_opacity = 144
-health_background_opacity = 71
-health_bar = bar.Bar( 0,0, 750, 16, player.lifes / player.orig_lifes
-                    , health_color, health_filled_opacity
-                    , health_background_opacity)
-
-bullets_bar_color = (225,229,6)
-bullets_filled_opacity = 139
-bullets_background_opacity = 62
-bullets_bar = bar.Bar( 750, 0, 750, 16, player.bullets_left / player.max_bullets
-                     , bullets_bar_color, bullets_filled_opacity
-                     , bullets_background_opacity)
-
-
-clock = pygame.time.Clock()
-
-done = False
-while not done:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            done = True
-        #Input handling
-        if event.type == pygame.KEYDOWN and event.key == K_w:
-            player.set_move_forward(True)
-        if event.type == pygame.KEYUP and event.key == K_w:
-            player.set_move_forward(False)
-        if event.type == pygame.KEYDOWN and event.key == K_s:
-            player.set_move_backward(True)
-        if event.type == pygame.KEYUP and event.key == K_s:
-            player.set_move_backward(False)
-        if event.type == pygame.KEYDOWN and event.key == K_a:
-            player.set_turn_right(True)
-        if event.type == pygame.KEYUP and event.key == K_a:
-            player.set_turn_right(False)
-        if event.type == pygame.KEYDOWN and event.key == K_d:
-            player.set_turn_left(True)
-        if event.type == pygame.KEYUP and event.key == K_d:
-            player.set_turn_left(False)
-
-        if event.type == pygame.KEYDOWN and event.key == K_SPACE:
-            player.set_shoot(True)
-        if event.type == pygame.KEYUP and event.key == K_SPACE:
-            player.set_shoot(False)
-
-
-    check_collisions()
-
-    #spawning logic
-    if not spawn_2_started:
-        frames_since_start = frames_since_start + 1
-        if frames_since_start > frames_till_first_enemy_2:
-            spawn_2_started = True
-    if random.random() <= chance_enemy_1:
-        spawn_enemy_one()
-    if spawn_2_started and random.random() <= chance_enemy_2:
-        spawn_enemy_two()
-
-    chance_enemy_2 = chance_enemy_2 + chance_multiplier
-    chance_enemy_1 = chance_enemy_1 + chance_multiplier
-    moving_sprites.update()
-
-    if player.lifes == 0:
-        health_part_filled = 0
-    else:
-        health_part_filled = player.lifes / player.orig_lifes
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                ldone = True
+                done = True
+                sys.exit()
+            if event.type == pygame.KEYDOWN and event.key == K_SPACE:
+                ldone = True
+                done = True
     
-    if player.bullets_left == 0:
-        bullets_part_filled = 0
+        fade_g.update()
+        health_bar.update(0)
+
+        screen.fill((0,0,0))
+        player_bullet_sprites.draw(screen)
+        enemy_bullet_sprites.draw(screen)
+        all_sprites.draw(screen)
+        health_bar.draw(screen)
+        bullets_bar.draw(screen)
+
+        fade_g.draw(screen)
+        draw_retry_score((color,color,color))
+
+        pygame.display.flip()
+
+        clock.tick(60)
+
+def draw_retry_score(color):
+    score_text = score_font.render( "You scored: " + str(score)
+                                  , 1, (255,255,255))
+    press_space_text = multiplier_font.render("Press space to continue..."
+                       , 1, color)
+    screen.blit(score_text, ( 750 - score_text.get_width() / 2
+                            , 450 - score_text.get_height() / 2))
+    screen.blit(press_space_text, (750 - press_space_text.get_width() / 2
+                                  , 480))
+
+
+while True:
+    pygame.init()
+    screen_width = 1500
+    screen_height = 900
+    
+    score = 0
+    score_multiplier = 1
+    score_font = pygame.font.Font("Munro.ttf", 48)
+    multiplier_font = pygame.font.Font("Munro.ttf", 24)
+
+    # Get the highscore
+    highscore_fname = ".highscore"
+    if os.path.isfile(highscore_fname):
+        highscore_file = open(highscore_fname, 'r')
+        highscore = int(highscore_file.read())
+        highscore_file.close()
     else:
-        bullets_part_filled = player.bullets_left / player.max_bullets
+        highscore = 0
+        highscore_file = open(highscore_fname, 'w')
+        highscore_file.write("0")
+        highscore_file.close()
+    
+    enemy_one_score = 5
+    enemy_two_score = 10
+    enemy_three_score = 8
+    
+    screen = pygame.display.set_mode([screen_width,screen_height])
+    pygame.display.set_caption('myGame')
+    background = pygame.Surface(screen.get_size())
+    background = background.convert();
+    background.fill((0,0,0))
+    
+    all_sprites = pygame.sprite.Group()
+    player_bullet_sprites = pygame.sprite.Group()
+    enemy_bullet_sprites = pygame.sprite.Group()
+    enemy_sprites = pygame.sprite.Group()
+    moving_sprites = pygame.sprite.Group()
+    
+    player_tex = "triangle.png"
+    player_sprite = pygame.image.load(player_tex).convert_alpha()
+    
+    player = Player (screen_width / 2, screen_height / 2, player_sprite)
+    all_sprites.add(player)
+    moving_sprites.add(player)
+    
+    # 7 enemys in the beginning
+    for i in range(0,7):
+        e = EnemyOne()
+        all_sprites.add(e)
+        moving_sprites.add(e)
+    
+    #Spawn variables
+    frames_till_first_enemy_2 = 600
+    frames_till_first_enemy_3 = 1200
+    frames_since_start = 0
+    spawn_2_started = False
+    spawn_3_started = False
+    chance_enemy_1 = 0.004
+    chance_enemy_2 = 0.002
+    chance_enemy_3 = 0.0004
+    chance_multiplier_1 = 0.0000006
+    chance_multiplier_2 = 0.0000004
+    chance_multiplier_3 = 0.00000005
+    
+    # GUI
+    health_color = (231,27,0)
+    health_filled_opacity = 144
+    health_background_opacity = 71
+    health_bar = bar.Bar( 0,0, 750, 16, player.lifes / player.orig_lifes
+                        , health_color, health_filled_opacity
+                        , health_background_opacity)
+    
+    bullets_bar_color = (255,255,28)
+    bullets_filled_opacity = 139
+    bullets_background_opacity = 62
+    bullets_bar = bar.Bar( 750, 0, 750, 16, player.bullets_left / player.max_bullets
+                         , bullets_bar_color, bullets_filled_opacity
+                         , bullets_background_opacity)
 
-    health_bar.update(health_part_filled)
-    bullets_bar.update(bullets_part_filled)
+    # Hit flash sprite
+    hit_flash = pygame.sprite.Sprite()
+    hit_flash.image = pygame.Surface([screen_width,screen_height])
+    hit_flash.image.set_alpha(0)
+    hit_flash.image.fill((255,100,100))
+    hit_flash.rect = hit_flash.image.get_rect()
+    hit_flash_opacity = 0
 
-    screen.fill((0,0,0))
-    player_bullet_sprites.draw(screen)
-    enemy_bullet_sprites.draw(screen)
-    all_sprites.draw(screen)
+    flash_group = pygame.sprite.Group()
+    moving_sprites.add(hit_flash)
+    flash_group.add(hit_flash)
 
-    health_bar.draw(screen)
-    bullets_bar.draw(screen)
+    clock = pygame.time.Clock()
+    
+    done = False
+    while not done:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                done = True
+                sys.exit()
+            #Input handling
+            if event.type == pygame.KEYDOWN and event.key == K_w:
+                player.set_move_forward(True)
+            if event.type == pygame.KEYUP and event.key == K_w:
+                player.set_move_forward(False)
+            if event.type == pygame.KEYDOWN and event.key == K_s:
+                player.set_move_backward(True)
+            if event.type == pygame.KEYUP and event.key == K_s:
+                player.set_move_backward(False)
+            if event.type == pygame.KEYDOWN and event.key == K_a:
+                player.set_turn_right(True)
+            if event.type == pygame.KEYUP and event.key == K_a:
+                player.set_turn_right(False)
+            if event.type == pygame.KEYDOWN and event.key == K_d:
+                player.set_turn_left(True)
+            if event.type == pygame.KEYUP and event.key == K_d:
+                player.set_turn_left(False)
+    
+            if event.type == pygame.KEYDOWN and event.key == K_SPACE:
+                player.set_shoot(True)
+            if event.type == pygame.KEYUP and event.key == K_SPACE:
+                player.set_shoot(False)
+    
+    
+        check_collisions()
+    
+        #spawning logic
+        if not spawn_2_started or not spawn_3_started:
+            frames_since_start = frames_since_start + 1
+            if frames_since_start > frames_till_first_enemy_2:
+                spawn_2_started = True
+            if frames_since_start> frames_till_first_enemy_3:
+                spawn_3_started = True
+        if random.random() <= chance_enemy_1:
+            spawn_enemy_one()
+        if spawn_2_started and random.random() <= chance_enemy_2:
+            spawn_enemy_two()
+        if spawn_3_started and random.random() <= chance_enemy_3:
+            spawn_enemy_three()
+    
+        chance_enemy_3 = chance_enemy_3 + chance_multiplier_3
+        chance_enemy_2 = chance_enemy_2 + chance_multiplier_2
+        chance_enemy_1 = chance_enemy_1 + chance_multiplier_1
+        moving_sprites.update()
+    
+        if player.lifes == 0:
+            health_part_filled = 0
+        else:
+            health_part_filled = player.lifes / player.orig_lifes
+        
+        if player.bullets_left == 0:
+            bullets_part_filled = 0
+        else:
+            bullets_part_filled = player.bullets_left / player.max_bullets
+    
+        health_bar.update(health_part_filled)
+        bullets_bar.update(bullets_part_filled)
+    
+        screen.fill((0,0,0))
+        player_bullet_sprites.draw(screen)
+        enemy_bullet_sprites.draw(screen)
+        all_sprites.draw(screen)
+    
+        health_bar.draw(screen)
+        bullets_bar.draw(screen)
 
-    draw_score()
+        if score > highscore:
+            highscore = score
+    
+        draw_score()
 
-    pygame.display.flip()
-    clock.tick(60)
+        if hit_flash_opacity > 0:
+            hit_flash_opacity = hit_flash_opacity - 5
+
+        hit_flash.image.set_alpha(hit_flash_opacity)
+        flash_group.draw(screen)
+    
+        pygame.display.flip()
+        clock.tick(60)
+    
