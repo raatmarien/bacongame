@@ -108,7 +108,7 @@ class EnemyOne(Enemy):
         Enemy.__init__(self, x, y, speed_x, speed_y,5)
 
         self.image = pygame.Surface([self.width, self.height])
-        self.orig_color = (0,255,0)
+        self.orig_color = (0,255,68)
         self.color = self.orig_color
         self.image.fill(self.color)
         self.rect = self.image.get_rect()
@@ -134,7 +134,7 @@ class EnemyTwo(Enemy):
 
         Enemy.__init__(self, x, y, speed_x, speed_y,3)
         self.image = pygame.Surface([self.width, self.height])
-        self.orig_color = (0,0,255)
+        self.orig_color = (0,147,255)
         self.color = self.orig_color
         self.image.fill(self.color)
         self.rect = self.image.get_rect()
@@ -191,9 +191,11 @@ class EnemyTwo(Enemy):
             bullet_y = self.rect.y
 
         bullet = Bullet(bullet_x, bullet_y, speed_bullet_x, speed_bullet_y, 180
-                       , self.bullet_color)
+                       , self.bullet_color, 4, 4)
         enemy_bullet_sprites.add(bullet)
         moving_sprites.add(bullet)
+
+
         
 
 class EnemyThree(EnemyOne):
@@ -211,7 +213,7 @@ class EnemyThree(EnemyOne):
             self.speed_x = speed_x
             self.speed_y = speed_y
 
-        self.orig_color = (255,100,0)
+        self.orig_color = (255,255,0)
         self.color = self.orig_color
 
             
@@ -234,59 +236,82 @@ class EnemyThree(EnemyOne):
                 self.kill()
 
 
-class Bullet(pygame.sprite.Sprite):
-    speed_x = 0.0
-    speed_y = 0.0
-    width = 2
-    height = 2
-
-    transition_period = 25
-
-    def __init__(self, x, y,speed_x, speed_y, life_length, color):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = pygame.Surface([self.width, self.height])
-        self.image.fill(color)
-        self.rect = self.image.get_rect()
-
-        self.x = x
-        self.y = y
-
-        self.rect.x = x
-        self.rect.y = y
-
-        self.speed_x = float(speed_x)
-        self.speed_y = float(speed_y)
-
-        self.life_length = life_length
+class PowerUp(EnemyOne):
+    def __init__(self):
+        EnemyOne.__init__(self)
+        self.speed_x = 0
+        self.speed_y = 0
+        self.lifes = 1
+        self.tot_lifes = 1
+        self.hit_score = 0
+        self.width = 30
+        self.height = 30
 
     def update(self):
-        self.x = self.x + self.speed_x
-        self.y = self.y + self.speed_y
+        self.speed_x = 0
+        self.speed_y = 0
 
-        # bounce on walls
-        if self.x < 0:
-            self.x = 0
-            self.speed_x = abs(self.speed_x)
-        if self.x > screen_width - self.width:
-            self.x = screen_width - self.width
-            self.speed_x = -abs(self.speed_x)
-        if self.y < 0:
-            self.y = 0
-            self.speed_y = abs(self.speed_y)
-        if self.y > screen_height - self.height:
-            self.y = screen_height - self.height
-            self.speed_y = -abs(self.speed_y)
 
+class BulletPowerUp(PowerUp):
+    def __init__(self):
+        PowerUp.__init__(self)
+        self.image = pygame.image.load("pu_max_bullets.png")
+        self.rect = self.image.get_rect()
         self.rect.x = self.x
         self.rect.y = self.y
 
-        self.life_length = self.life_length - 1
+    def hit(self):
+        player.bullets_per_frame = player.bullets_per_frame + 0.35
+        player.max_bullets = player.max_bullets + 8
+        self.kill()
 
-        if self.life_length <= 0:
+class HealthPowerUp(PowerUp):
+    def __init__(self):
+        PowerUp.__init__(self)
+        self.image = pygame.image.load("pu_health.png")
+        self.rect = self.image.get_rect()
+        self.rect.x = self.x
+        self.rect.y = self.y
+
+    def hit(self):
+        player.lifes = player.lifes + 25
+        if player.lifes > player.orig_lifes:
+            player.lifes = player.orig_lifes
+        self.kill()
+
+class ShieldPowerUp(PowerUp):
+    def __init__(self):
+        PowerUp.__init__(self)
+        self.image = pygame.image.load("pu_shield.png")
+        self.rect = self.image.get_rect()
+        self.rect.x = self.x
+        self.rect.y = self.y
+
+    def hit(self):
+        if not player.shield:
+            player.shield = True
+            shield_obj = Shield()
+            all_sprites.add(shield_obj)
+            moving_sprites.add(shield_obj)
+            shield_group.add(shield_obj)
             self.kill()
-        elif self.life_length <= self.transition_period:
-            opacity = self.life_length / self.transition_period * 256
-            self.image.set_alpha(opacity)
+
+class Shield(pygame.sprite.Sprite):
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.image.load("pu_shield_36.png")
+        self.rect = self.image.get_rect()
+        self.rect.x = player.x
+        self.rect.y = player.y
+
+    def update(self):
+        self.rect.x = player.x
+        self.rect.y = player.y
+
+    def hit(self):
+        player.shield = False
+        self.kill()
+
 
 class Player(pygame.sprite.Sprite):
     width = 36
@@ -311,12 +336,15 @@ class Player(pygame.sprite.Sprite):
 
     is_shoot = False
 
-    max_bullets = 56
+    max_bullets = 30
+    bullets_per_frame = 2
     bullets_left = max_bullets
     bullet_color = (255,255,128)
 
     orig_lifes = 100
     lifes = orig_lifes
+
+    shield = False
 
     def __init__(self, x, y, sprite):
         pygame.sprite.Sprite.__init__(self)
@@ -341,8 +369,8 @@ class Player(pygame.sprite.Sprite):
             self.turn_left()
 
         if self.is_shoot:
-            self.shoot()
-            self.shoot()
+            for i in range(0,int(math.floor(self.bullets_per_frame))):
+                self.shoot()
 
         self.bullets_left = self.max_bullets - len(player_bullet_sprites)
 
@@ -367,8 +395,6 @@ class Player(pygame.sprite.Sprite):
         self.rect.x = self.x
         self.rect.y = self.y
 
-        if self.lifes < 100:
-            self.lifes = self.lifes + 0.01
 
         self.stop_on_walls()
 
@@ -416,7 +442,7 @@ class Player(pygame.sprite.Sprite):
             direction = (math.pi * 2) - self.direction
             direction = direction + math.pi
             direction = direction % (math.pi * 2)
-            direction = direction + r_dir - 0.05 # <- to middle it out
+            direction = direction + r_dir - 0.10 # <- to middle it out
 
             tot = 10 + r_speed
 
@@ -436,7 +462,7 @@ class Player(pygame.sprite.Sprite):
                 speed_y = tot * math.cos((2 * math.pi) - direction)
 
             b = Bullet(self.rect.center[0], self.rect.center[1]
-                      , speed_x, speed_y, life_length, self.bullet_color)
+                      , speed_x, speed_y, life_length, self.bullet_color, 2, 2)
             player_bullet_sprites.add(b)
             moving_sprites.add(b)
 
@@ -457,14 +483,17 @@ class Player(pygame.sprite.Sprite):
         self.is_shoot = b
 
     def hit(self, damage):
-        self.lifes = self.lifes - damage
-        if self.lifes <= 0:
-            game_over()
-        global score_multiplier
-        score_multiplier = 1
+        if not self.shield:
+            self.lifes = self.lifes - damage
+            if self.lifes <= 0:
+                game_over()
+            global score_multiplier
+            score_multiplier = 1
 
-        global hit_flash_opacity
-        hit_flash_opacity = 120
+            global hit_flash_opacity
+            hit_flash_opacity = 120
+        else:
+            shield = False
 
 
 def check_collisions():
@@ -482,12 +511,28 @@ def check_collisions_player():
                   , player_x, player_y, player_width, player_height ):
            bullet.kill()
            player.hit(3)
+           for shield in shield_group:
+               if collides( bullet.x, bullet.y, bullet.width, bullet.height
+                          , shield.rect.x, shield.rect.y, player_width
+                          , player_height):
+                   shield.hit()
     enemy_list = enemy_sprites.sprites()
     for enemy in enemy_list:
         if collides( enemy.x, enemy.y, enemy.width, enemy.height
                    , player_x, player_y, player_width, player_height ):
             enemy.kill()
             player.hit(10)
+            for shield in shield_group:
+               if collides( enemy.x, enemy.y, enemy.width, enemy.height
+                          , shield.rect.x, shield.rect.y, player_width
+                          , player_height):
+                   shield.hit()
+
+    pup_list = pup_sprites.sprites()
+    for pup in pup_list:
+        if collides( pup.rect.x, pup.rect.y, pup.width, pup.height
+                   , player_x, player_y, player_width, player_width):
+            pup.hit()
 
 def check_collisions_enemys():
     bullet_list = player_bullet_sprites.sprites()
@@ -524,6 +569,24 @@ def spawn_enemy_three():
     e_3 = EnemyThree(0,0,0,0,False,0,0)
     all_sprites.add(e_3)
     moving_sprites.add(e_3)
+
+def spawn_max_bullets_pu():
+    pu = BulletPowerUp()
+    all_sprites.add(pu)
+    moving_sprites.add(pu)
+    pup_sprites.add(pu) 
+
+def spawn_health_pu():
+    pu = HealthPowerUp()
+    all_sprites.add(pu)
+    moving_sprites.add(pu)
+    pup_sprites.add(pu)
+
+def spawn_shield_pu():
+    pu = ShieldPowerUp()
+    all_sprites.add(pu)
+    moving_sprites.add(pu)
+    pup_sprites.add(pu)
 
 
 def draw_score():
@@ -605,6 +668,51 @@ def retry_screen():
 
         clock.tick(60)
 
+def controls_screen():
+    controls_information = pygame.sprite.Sprite()
+    controls_information.image = pygame.image.load("controls.png").convert_alpha()
+    controls_information.rect = controls_information.image.get_rect()
+    controls_group = pygame.sprite.Group()
+    controls_group.add(controls_information)
+
+    orig_color = 150
+    color = orig_color
+    play = False
+    while not play:
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN and event.key == K_SPACE:
+                play = True
+            if event.type == pygame.QUIT:
+                sys.exit()
+
+        health_bar.update(1)
+        bullets_bar.update(1)
+    
+        screen.fill((0,0,0))
+        controls_group.draw(screen)
+    
+        health_bar.draw(screen)
+        bullets_bar.draw(screen)
+
+        if color <= orig_color:
+            up = True
+        if color >= 255:
+            up = False
+        if up:
+            color = color + 5
+        else:
+            color = color - 5
+
+        press_space_text = score_font.render("Press space to play..."
+                           , 1, (color,color,color))
+        screen.blit(press_space_text, ( 750 - press_space_text.get_width() / 2
+                                      , 700))
+
+        pygame.display.flip()
+        clock.tick(60)
+
+
+
 def draw_retry_score(color):
     score_text = score_font.render( "You scored: " + str(score)
                                   , 1, (255,255,255))
@@ -614,6 +722,19 @@ def draw_retry_score(color):
                             , 450 - score_text.get_height() / 2))
     screen.blit(press_space_text, (750 - press_space_text.get_width() / 2
                                   , 480))
+    if score == highscore:
+        highscore_text = score_font.render("You scored a new highscore!", 1
+                                          , (255, 255, 255))
+        screen.blit(highscore_text, (750 - highscore_text.get_width() / 2
+                                  , 375 - highscore_text.get_height() / 2))
+
+
+def pause():
+    space = False
+    while not space:
+        for event in pygame.event.get():
+            if event.type == KEYUP and event.key == K_SPACE:
+                space = True
 
 
 while True:
@@ -652,7 +773,11 @@ while True:
     player_bullet_sprites = pygame.sprite.Group()
     enemy_bullet_sprites = pygame.sprite.Group()
     enemy_sprites = pygame.sprite.Group()
+    pup_sprites = pygame.sprite.Group() #All Power Ups should also be part of the
+                                       #enemy_sprites group for
+                                       #collision detection
     moving_sprites = pygame.sprite.Group()
+    shield_group = pygame.sprite.Group()
     
     player_tex = "triangle.png"
     player_sprite = pygame.image.load(player_tex).convert_alpha()
@@ -660,7 +785,7 @@ while True:
     player = Player (screen_width / 2, screen_height / 2, player_sprite)
     all_sprites.add(player)
     moving_sprites.add(player)
-    
+
     # 7 enemys in the beginning
     for i in range(0,7):
         e = EnemyOne()
@@ -676,9 +801,15 @@ while True:
     chance_enemy_1 = 0.004
     chance_enemy_2 = 0.002
     chance_enemy_3 = 0.0004
-    chance_multiplier_1 = 0.0000006
-    chance_multiplier_2 = 0.0000004
-    chance_multiplier_3 = 0.00000005
+    chance_mb_pu = 0.0
+    chance_health_pu = 0.0
+    chance_shield_pu = 0.0
+    chance_mb_pu_add =     0.00000008
+    chance_health_pu_add = 0.00000036
+    chance_shield_pu_add = 0.00000020
+    chance_multiplier_1 = 0.0000012
+    chance_multiplier_2 = 0.0000007
+    chance_multiplier_3 = 0.00000008
     
     # GUI
     health_color = (231,27,0)
@@ -708,7 +839,9 @@ while True:
     flash_group.add(hit_flash)
 
     clock = pygame.time.Clock()
-    
+
+    controls_screen()
+
     done = False
     while not done:
         for event in pygame.event.get():
@@ -716,6 +849,8 @@ while True:
                 done = True
                 sys.exit()
             #Input handling
+            if event.type == KEYDOWN and event.key == K_ESCAPE:
+                pause()
             if event.type == pygame.KEYDOWN and event.key == K_w:
                 player.set_move_forward(True)
             if event.type == pygame.KEYUP and event.key == K_w:
@@ -737,6 +872,9 @@ while True:
                 player.set_shoot(True)
             if event.type == pygame.KEYUP and event.key == K_SPACE:
                 player.set_shoot(False)
+                
+            if event.type == pygame.KEYDOWN and event.key == K_p: #Debug
+                player.hit(1000)
     
     
         check_collisions()
@@ -754,6 +892,21 @@ while True:
             spawn_enemy_two()
         if spawn_3_started and random.random() <= chance_enemy_3:
             spawn_enemy_three()
+        if random.random() <= chance_mb_pu:
+            spawn_max_bullets_pu()
+            chance_mb_pu = 0.0
+        else:
+            chance_mb_pu = chance_mb_pu + chance_mb_pu_add
+        if random.random() <= chance_health_pu:
+            spawn_health_pu()
+            chance_health_pu = 0.0
+        else:
+            chance_health_pu = chance_health_pu + chance_health_pu_add
+        if random.random() <= chance_shield_pu:
+            spawn_shield_pu()
+            chance_shield_pu = 0.0
+        else:
+            chance_shield_pu = chance_shield_pu + chance_shield_pu_add
     
         chance_enemy_3 = chance_enemy_3 + chance_multiplier_3
         chance_enemy_2 = chance_enemy_2 + chance_multiplier_2

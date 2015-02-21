@@ -1,5 +1,8 @@
 import pygame
 
+screen_width = 1500
+screen_height = 900
+
 class Bullet(pygame.sprite.Sprite):
     speed_x = 0.0
     speed_y = 0.0
@@ -8,9 +11,10 @@ class Bullet(pygame.sprite.Sprite):
 
     transition_period = 25
 
-    def __init__(self, x, y,speed_x, speed_y, life_length, color):
+    def __init__(self, x, y,speed_x, speed_y, life_length, color
+            , width, height):
         pygame.sprite.Sprite.__init__(self)
-        self.image = pygame.Surface([self.width, self.height])
+        self.image = pygame.Surface([width, height])
         self.image.fill(color)
         self.rect = self.image.get_rect()
 
@@ -22,6 +26,9 @@ class Bullet(pygame.sprite.Sprite):
 
         self.speed_x = float(speed_x)
         self.speed_y = float(speed_y)
+
+        self.width = width
+        self.height = height
 
         self.life_length = life_length
 
